@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# uzip the training data into /train folder
-#unzip train.zip
+## the kaggle data files must have already been unzipped into the 
+## train/ and test/ folders 
 
 # convert train/*.tif and *_maks.tif data to numpy arrays 
 # using code from 
