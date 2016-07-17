@@ -10,6 +10,6 @@ Needed to run code in this folder
   |  +-- *.tiff files for test data set
 ```
   
-+ must have folder containing BP_utils.py on your PYTHONPATH
++ must have folder containing ./utils/ on your PYTHONPATH
 + must have cv2 (aka openCV) python package installed \
 + there are probably other requirements but things are too messy right now for me to know what they are
