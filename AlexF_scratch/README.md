@@ -9,7 +9,7 @@ Needed to run code in this folder
   +-- test/
   |  +-- *.tiff files for test data set
 ```
-  
 + must have folder ./utils/ on your PYTHONPATH
++ run `bash ./commands.bash` from the . directory 
 + must have cv2 (aka openCV) python package installed \
 + there are probably other requirements but things are too messy right now for me to know what they are
