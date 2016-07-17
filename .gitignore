@@ -4,3 +4,5 @@
 *.csv
 *.hdf5
 .ipynb_checkpoints/
+*scratch*
+*attempt[0-9]*
