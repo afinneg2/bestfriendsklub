@@ -1,7 +1,3 @@
-### copied from https://github.com/jocicmarko/ultrasound-nerve-segmentation/blob/master/data.py
-### by Marko Jocic
-
-
 from __future__ import print_function
 
 import os
@@ -12,195 +8,99 @@ from numpy import  linalg as LA
 import networkx as nx
 from scipy import linalg as spLA
 
-data_path = 'raw/'
+####################################
+#### Preprocessing code ##############   
+#######################################
+def resize_images(imgs,img_rows, img_cols, interp_method='INTER_AREA'):
+    interp_dict ={'INTER_AREA':cv2.INTER_AREA,
+                'INTER_CUBIC': cv2.INTER_CUBIC,
+                'INTER_LINEAR':cv2.INTER_LINEAR}
 
-image_rows = 420  # how did marko get the image dims ?
-image_cols = 580
-
-### These functions shouldn be run from directory with the following subdirs
-## raw/train  with unzipped training data 
-## raw/test   with unzipped test data
-
-def create_train_data():
-    train_data_path = os.path.join(data_path, 'train')
-    images = os.listdir(train_data_path)
-    total = len(images) / 2
-
-    imgs = np.ndarray((total, 1, image_rows, image_cols), dtype=np.uint8)
-    imgs_mask = np.ndarray((total, 1, image_rows, image_cols), dtype=np.uint8)
-
-    i = 0
-    print('-'*30)
-    print('Creating training images...')
-    print('-'*30)
-    for image_name in images:
-        if 'mask' in image_name:
-            continue
-        image_mask_name = image_name.split('.')[0] + '_mask.tif'
-        img = cv2.imread(os.path.join(train_data_path, image_name), cv2.IMREAD_GRAYSCALE)
-        img_mask = cv2.imread(os.path.join(train_data_path, image_mask_name), cv2.IMREAD_GRAYSCALE)
-
-        img = np.array([img])
-        img_mask = np.array([img_mask])
-
-        imgs[i] = img
-        imgs_mask[i] = img_mask
-
-        if i % 100 == 0:
-            print('Done: {0}/{1} images'.format(i, total))
-        i += 1
-    print('Loading done.')
-
-    np.save('imgs_train.npy', imgs)
-    np.save('imgs_mask_train.npy', imgs_mask)
-    print('Saving to .npy files done.')
-    
-
-    
-def load_train_data():
-    imgs_train = np.load('imgs_train.npy')
-    imgs_mask_train = np.load('imgs_mask_train.npy')
-    return imgs_train, imgs_mask_train
-    
-    
-
-def create_test_data():
-    train_data_path = os.path.join(data_path, 'test')
-    images = os.listdir(train_data_path)
-    total = len(images)
-
-    imgs = np.ndarray((total, 1, image_rows, image_cols), dtype=np.uint8)
-    imgs_id = np.ndarray((total, ), dtype=np.int32)
-
-    i = 0
-    print('-'*30)
-    print('Creating test images...')
-    print('-'*30)
-    for image_name in images:
-        img_id = int(image_name.split('.')[0])
-        img = cv2.imread(os.path.join(train_data_path, image_name), cv2.IMREAD_GRAYSCALE)
-
-        img = np.array([img])
-
-        imgs[i] = img
-        imgs_id[i] = img_id
-
-        if i % 100 == 0:
-            print('Done: {0}/{1} images'.format(i, total))
-        i += 1
-    print('Loading done.')
-
-    np.save('imgs_test.npy', imgs)
-    np.save('imgs_id_test.npy', imgs_id)
-    print('Saving to .npy files done.')
-
-
-def load_test_data():
-    imgs_test = np.load('imgs_test.npy')
-    imgs_id = np.load('imgs_id_test.npy')
-    return imgs_test, imgs_id
-
-#if __name__ == '__main__':
-#    create_train_data()
-#    create_test_data()
-
-### code copied from
-# https://www.kaggle.com/chefele/ultrasound-nerve-segmentation/plot-images-overlaid-with-mask
-# by christopher Hefele
-
-def image_with_mask(img, mask):
-    # returns a copy of the image with edges of the mask added in red
-    img_color = grays_to_RGB(img)
-    mask_edges = cv2.Canny(mask, 100, 200) > 0  
-    img_color[mask_edges, 0] = 255  # set channel 0 to bright red, green & blue channels to 0
-    img_color[mask_edges, 1] = 0
-    img_color[mask_edges, 2] = 0
-    return img_color
-
-def mask_not_blank(mask):
-    return sum(mask.flatten()) > 0
-
-def grays_to_RGB(img):
-    # turn 2D grayscale image into grayscale RGB
-    return np.dstack((img, img, img)) 
-
-def plot_image(img, title=None,):
-    plt.figure(figsize=(15,20))
-    plt.title(title)
-    plt.imshow(img, cmap='gray')
-    plt.show()
-    
-## Alex's functions ######################
-
-
-def plot_mask_with_decision_bndry(ax, img_arr, mask_arr, decision_bndry=None,
-                                    linewidth=2):
-    ax.imshow(image_with_mask(img_arr,mask_arr))
-    xlim=ax.get_xlim()
-    ylim=ax.get_ylim()
-    
-    if decision_bndry is not None:
-        xvals =decision_bndry[0]
-        yvals=decision_bndry[1]
-        ax.plot(xvals,yvals, linewidth=linewidth)
-        ax.set_xlim(xlim)
-        ax.set_ylim(ylim)
+    imgs_p = np.ndarray((imgs.shape[0], imgs.shape[1], img_rows, img_cols), dtype=np.uint8)
+    for i in range(imgs.shape[0]):
+        imgs_p[i, 0] = cv2.resize(imgs[i, 0], (img_cols, img_rows), 
+            interpolation=interp_dict[interp_method])
+    return imgs_p
             
-    #return ax
-        
-def plot_example(image_arr, mask_arr, offset=-0.5,figsize=(14.0,14.0) ):
-    
-    min_x=offset
-    max_x =np.shape(image_arr)[1] + offset
-    min_y = offset
-    max_y = np.shape(image_arr)[0] + offset
-    
-    #create dummy decision bndry data
-    x_center=np.random.uniform(min_x + (max_x-min_x)/4.0, 
-                                    min_x + 3*(max_x-min_x)/4.0 )
-    y_center=np.random.uniform(min_y + (max_y-min_y)/4.0,
-                                    min_y + 3*(max_y-min_y)/4.0 )
-    radius=np.random.uniform(0.,(max_x-min_x)/4.0)
-    
 
-    decision_bndry = (radius*np.cos(np.linspace(0,2*np.pi,100))+ x_center,
-                        radius*np.sin(np.linspace(0,2*np.pi,100))+ y_center)
-    
-    fig=plt.figure(figsize=figsize)
-    ax=fig.add_subplot('111')
-    ax = plot_mask_with_decision_bndry(ax,image_arr, mask_arr, decision_bndry)
-    return fig
-    
-
-def mask_from_circle_params(center, radius, img_shape=(580,420)): 
+def mean_center_and_scale(img_arr, scale=None, squeeze= True):
     """
-    returns a 2d numpy boolean array that is true whenever a pixel is within the 
-    circle specified by center= (x_center ,y_center) and radius and False otherwise.
+    Input
+    img_arr is (dataSetSize, pixelRows, PixelColumns) ndarray
+    scale is global divisor of pixel intensity after mean centering
+            if scale=None divide by max(abs())) pixel intensity after mean centering
+            
+    squeeze = If True then squeeze 
+            all lenght 1 axes
     
-    Inputs
-    center
-    radius
-    image_shape=(number of pixels along x (horizontal) axis, number of pixels along y (vertical) axis)
+    return img_arr after mean centering, scaling and possibly squeezing
+    
     """
-# http://stackoverflow.com/questions/8647024/how-to-apply-a-disc-shaped-mask-to-a-numpy-array   
-    y_vals, x_vals = np.ogrid[0:img_shape[1],0:img_shape[0]]
-    mask=(x_vals-center[0])**2 + (y_vals-center[1])**2 <= radius**2
-    return mask
-    
-    
+    if squeeze:
+        img_arr =np.squeeze(img_arr)
         
-def dice_coef(y_true, y_pred):
+    pixel_means =  np.mean(img_arr, axis=0)
+    img_arr =  img_arr - pixel_means
     
-    smooth=1 ## used by J marko to enforce condietion dice_coeff -> 1 for no BP nerve
-    y_true_f = np.ravel(y_true)
-    y_pred_f = np.ravel(y_pred)
-    intersection = np.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (np.sum(y_true_f) + np.sum(y_pred_f) + smooth)
+    if scale is None:
+        scale = np.max(np.abs(img_arr))
+    img_arr = img_arr / np.float(scale)  
+    return img_arr
+    
+def mask_not_blank(mask):
+    return sum(mask.flatten()) > 0.1
+    
+###########################################
+#### training/ValidationPartitioning #########
+############################################
 
+#def selectTrainIndices(pos_maks, neg_maks, trainSetSize)
+
+def TrainingValditionIndexPartition(PosIndices, NegIndices, trainSetSize,
+                        PosElemsLimiting=True):                   
+    """
+    PosIndices - 1d array indexing postive elements of numpy array version of
+                kaggle data set
+    NegIndices  - "".. negative elements... ""
+   
+   trainSetSize - integer size for the training set to be constructed
+   PosElemsLimiting - Bool (True if the dataset to be partitioned has more negative
+                        than positive elements)
+   
+    """  
+    ## selecting indices for Training set                                                     
+    TrainPosIndices = np.random.choice(PosIndices, size=np.int(trainSetSize/2), replace=False)
+    TrainNegIndices = np.random.choice(NegIndices, size=np.int(trainSetSize/2), replace=False)
+
+    print("shape of TrainPosIndices {}".format(np.shape(TrainPosIndices)) )
+    print("shape of TrainNegIndices {}".format(np.shape(TrainNegIndices)) )
+   
+    # select indices for validation set
+    if PosElemsLimiting:
+        ValidPosIndices = np.setdiff1d(PosIndices, TrainPosIndices)
+        ValidNegIndices = np.random.choice(  np.setdiff1d(NegIndices, TrainNegIndices), 
+                                   size = len(ValidPosIndices), replace = False)   
+    else:
+        ValidNegIndices = np.setdiff1d(NegIndices, TrainNegIndices)
+        ValidPosIndices = np.random.choice(  np.setdiff1d(PosIndices, TrainPosIndices), 
+                                   size = len(ValidNegIndices), replace = False)  
     
-#### Preprocessing code        
-                
-# PCA code 
+    print("shape of ValidPosIndices {}".format(np.shape(ValidPosIndices)) )
+    print("shape of ValidNegIndices {}".format(np.shape(ValidNegIndices)) )
+
+    return [TrainPosIndices, TrainNegIndices], [ValidPosIndices, ValidNegIndices]
+
+def makeTrainValidationSetsFromIndices(imgs , masks , trainSetIndices, validSetIndices):
+    trainSet  = imgs[trainSetIndices]
+    trainMasks = masks[trainSetIndices]
+    
+    validSet= imgs[validSetIndices]
+    validMasks  = masks[validSetIndices]
+    
+    return [trainSet, trainMasks], [validSet, validMasks]
+######################################                
+# PCA code ###########################
+######################################
 
 def get_var_PC_vecs_LA(data):
     """
@@ -272,14 +172,22 @@ def local_PCA(imgs, window=(10,10),stride=(1,1), nb_largest_ev=10):
             
     return local_PCA_evals, local_PCA_evecs
 
+##############################################################
+#### Projecting images along vectors and scoring projections######
+###################################################
+
+
 def make_img_proj_arr(vecs, imgs, normalize_imgs=True):
+    """
+    Make an array of image pojections along a set of vectors
+    """
+    
     imgs = np.reshape(imgs, newshape=(np.shape(imgs)[0], np.shape(vecs)[0]))
     if normalize_imgs:
         imgs = imgs / np.asarray([LA.norm(imgs[i,:]) for i in xrange(0,np.shape(imgs)[0])])[:,None]
     proj_arr = np.dot(imgs, vecs)
     return proj_arr 
-     
-     
+    
 def calculate_JS_div_along_PCvecs(vecs, pos_imgs,
                                     neg_imgs, window, stride=(1,1), proj_bins=15):
     """
@@ -320,8 +228,8 @@ def calculate_JS_div_along_PCvecs(vecs, pos_imgs,
             JS_D_arr[row_index//stride[0],col_index//stride[1],:]=np.asarray(
                     [JS_divergence(pos_imgs_hists[:,i],neg_imgs_hists[:,i]) for i in xrange(0,np.shape(vecs)[1])]
                     )
-    return JS_D_arr      
-
+    return JS_D_arr    
+      
 def make_PCvec_score_distributions(vecs, pos_imgs, neg_imgs, window, stride=(1,1), proj_bins=15):
     
     img_rows , img_cols = np.shape(pos_imgs)[-2:]
@@ -358,23 +266,8 @@ def make_PCvec_score_distributions(vecs, pos_imgs, neg_imgs, window, stride=(1,1
             neg_imgs_hists_arr[row_index//stride[0],col_index//stride[1],:,:] = neg_imgs_hists
       
     return pos_imgs_hists_arr, neg_imgs_hists_arr     
-   
-### shift and images
     
     
-
-## misc functions 
-def resize_images(imgs,img_rows, img_cols, interp_method='INTER_AREA'):
-    interp_dict ={'INTER_AREA':cv2.INTER_AREA,
-                'INTER_CUBIC': cv2.INTER_CUBIC,
-                'INTER_LINEAR':cv2.INTER_LINEAR}
-
-    imgs_p = np.ndarray((imgs.shape[0], imgs.shape[1], img_rows, img_cols), dtype=np.uint8)
-    for i in range(imgs.shape[0]):
-        imgs_p[i, 0] = cv2.resize(imgs[i, 0], (img_cols, img_rows), 
-            interpolation=interp_dict[interp_method])
-    return imgs_p
-
 def JS_divergence(P,Q, pseudo_count=True):
     if pseudo_count:
         pseudo_count=0.01*min(np.mean(P), np.mean(Q))
